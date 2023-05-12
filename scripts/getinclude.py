@@ -12,24 +12,18 @@ import subprocess
 import re
 
 def main():
-    cxx = 'g++'
-    if 2 == len(sys.argv):
-        cxx = sys.argv[1]
-
+    cxx = sys.argv[1] if len(sys.argv) == 2 else 'g++'
     cmd = [cxx, '-E', '-x', 'c++', '-v', '/dev/null']
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = p.communicate()
 
     m = re.findall(b'\n (/.*)', stderr)
 
-    includes = ''
-
-    for x in m:
-        if -1 != x.find(b'(framework directory)'):
-            continue
-
-        includes += '-isystem%s ' % os.path.normpath(x.decode())
-
+    includes = ''.join(
+        f'-isystem{os.path.normpath(x.decode())} '
+        for x in m
+        if x.find(b'(framework directory)') == -1
+    )
     print(includes)
 
     return 1

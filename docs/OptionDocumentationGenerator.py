@@ -10,7 +10,7 @@ import base64
 #------------------------------------------------------------------------------
 
 def runCmd(cmd, data=None):
-    if None == input:
+    if input is None:
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = p.communicate()
     else:
@@ -26,15 +26,7 @@ def getDefaultIncludeDirs(cxx):
 
     m = re.findall('\n (/.*)', stderr)
 
-    includes = []
-
-    for x in m:
-        if -1 != x.find('(framework directory)'):
-            continue
-
-        includes.append('-isystem%s' %(x))
-
-    return includes
+    return [f'-isystem{x}' for x in m if x.find('(framework directory)') == -1]
 #------------------------------------------------------------------------------
 
 def replaceSource(match):
@@ -42,56 +34,56 @@ def replaceSource(match):
 
     cpp = '<!-- source:%s.cpp -->\n' %(fileName)
     cpp += '```{.cpp}\n'
-    cpp += open('examples/%s.cpp' %(fileName), 'r').read().strip()
+    cpp += open(f'examples/{fileName}.cpp', 'r').read().strip()
     cpp += '\n```\n'
-    cpp += '<!-- source-end:%s.cpp -->' %(fileName)
+    cpp += f'<!-- source-end:{fileName}.cpp -->'
 
     return cpp
 #------------------------------------------------------------------------------
 
 def cppinsightsLink(code, std='2a', options=''):
     # currently 20 is not a thing
-    if '20' == std:
+    if std == '20':
         print('Replacing 20 by 2a')
         std = '2a'
 
     # per default use latest standard
-    if '' == std:
+    if std == '':
         std = '2a'
 
-    std = 'cpp' + std
+    std = f'cpp{std}'
 
     if options:
-        options += ',' + std
+        options += f',{std}'
     else:
         options = std
 
-    return('https://cppinsights.io/lnk?code=%s&insightsOptions=%s&rev=1.0' %(base64.b64encode(code).decode('utf-8'), options))
+    return f"https://cppinsights.io/lnk?code={base64.b64encode(code).decode('utf-8')}&insightsOptions={options}&rev=1.0"
 #------------------------------------------------------------------------------
 
 def replaceInsights(match, parser, args):
-    cppFileName = match.group(2) + '.cpp'
+    cppFileName = f'{match.group(2)}.cpp'
 
     insightsPath  = args['insights']
     remainingArgs = args['args']
-    defaultCppStd = '-std=%s'% (args['std'])
+    defaultCppStd = f"-std={args['std']}"
 
     defaultIncludeDirs = getDefaultIncludeDirs(args['cxx'])
     cpp = '<!-- transformed:%s -->\n' %(cppFileName)
     cpp += 'Here is the transformed code:\n'
     cpp += '```{.cpp}\n'
 
-    cmd = [insightsPath, 'examples/%s' %(cppFileName), '--', defaultCppStd, '-m64']
+    cmd = [insightsPath, f'examples/{cppFileName}', '--', defaultCppStd, '-m64']
     stdout, stderr, retCode = runCmd(cmd)
 
     cpp += stdout
 
-    cppData = open('examples/%s' %(cppFileName), 'r').read().strip().encode('utf-8')
+    cppData = open(f'examples/{cppFileName}', 'r').read().strip().encode('utf-8')
 
 
     cpp += '\n```\n'
     cpp += '[Live view](%s)\n' %(cppinsightsLink(cppData))
-    cpp += '<!-- transformed-end:%s -->' %(cppFileName)
+    cpp += f'<!-- transformed-end:{cppFileName} -->'
 
     return cpp
 #------------------------------------------------------------------------------
@@ -106,7 +98,7 @@ def main():
 
     insightsPath  = args['insights']
     remainingArgs = args['args']
-    defaultCppStd = '-std=%s'% (args['std'])
+    defaultCppStd = f"-std={args['std']}"
 
     print(insightsPath)
     defaultIncludeDirs = getDefaultIncludeDirs(args['cxx'])
@@ -119,16 +111,23 @@ def main():
 
         data = open(f, 'r').read()
 
-        cppFileName = 'cmdl-examples/%s.cpp' %(optionName)
+        cppFileName = f'cmdl-examples/{optionName}.cpp'
 
         cpp = open(cppFileName, 'r').read().strip()
 
-        data = data.replace('%s-source' %(optionName), cpp)
+        data = data.replace(f'{optionName}-source', cpp)
 
-        cmd = [insightsPath, cppFileName, '--%s' %(optionName), '--', defaultCppStd, '-m64']
+        cmd = [
+            insightsPath,
+            cppFileName,
+            f'--{optionName}',
+            '--',
+            defaultCppStd,
+            '-m64',
+        ]
         stdout, stderr, retCode = runCmd(cmd)
 
-        data = data.replace('%s-transformed' %(optionName), stdout)
+        data = data.replace(f'{optionName}-transformed', stdout)
 
         open(f, 'w').write(data)
 
@@ -141,7 +140,7 @@ def main():
 
         exampleName = os.path.splitext(f)[0].strip()
 
-        mdFileName = os.path.join('examples', '%s.md' %(exampleName))
+        mdFileName = os.path.join('examples', f'{exampleName}.md')
 
         mdData = open(mdFileName, 'r').read()
 

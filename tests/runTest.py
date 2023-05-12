@@ -14,7 +14,7 @@ import difflib
 mypath = '.'
 
 def runCmd(cmd, data=None):
-    if None == input:
+    if input is None:
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = p.communicate()
     else:
@@ -25,7 +25,7 @@ def runCmd(cmd, data=None):
 #------------------------------------------------------------------------------
 
 def cleanStderr(stderr, fileName=None):
-    if None != fileName:
+    if fileName != None:
         stderr = stderr.replace(fileName, '.tmp.cpp')
     else:
         stderr = re.sub('(.*).cpp:', '.tmp:', stderr)
@@ -46,10 +46,10 @@ def testCompare(tmpFileName, stdout, expectFile, f, args, time):
         stdout = stdout.replace('\r\n', '\n')
 
     if stdout != expect:
-        print('[FAILED] %s - %s' %(f, time))
+        print(f'[FAILED] {f} - {time}')
 
         for line in difflib.unified_diff(expect.splitlines(keepends=True), stdout.splitlines(keepends=True), fromfile=expectFile, tofile='stdout', n=3):
-            print('%s' %((line[1:] if line.startswith(' ') else line) ), end='')
+            print(f"{line[1:] if line.startswith(' ') else line}", end='')
     else:
         print('[PASSED] %-50s - %s' %(f, time))
         return True
@@ -70,44 +70,44 @@ def testCompile(tmpFileName, f, args, fileName, cppStd):
         cmd.extend(['/nologo', '/EHsc', '/IGNORE:C4335']) # C4335: mac file format detected. EHsc assume only C++ functions throw exceptions.
 
     # GCC seems to dislike empty ''
-    if '-std=c++98' == cppStd:
+    if cppStd == '-std=c++98':
         cmd += ['-Dalignas(x)=']
 
     cmd += ['-c', tmpFileName]
 
     stdout, stderr, returncode = runCmd(cmd)
 
-    compileErrorFile = os.path.join(mypath, fileName + '.cerr')
-    if 0 != returncode:
+    compileErrorFile = os.path.join(mypath, f'{fileName}.cerr')
+    if returncode != 0:
         if os.path.isfile(compileErrorFile):
             ce = open(compileErrorFile, 'r', encoding='utf-8').read()
             stderr = cleanStderr(stderr, tmpFileName)
 
             if ce == stderr:
-                print('[PASSED] Compile: %s' %(f))
+                print(f'[PASSED] Compile: {f}')
                 return True, None
 
-        compileErrorFile = os.path.join(mypath, fileName + '.ccerr')
+        compileErrorFile = os.path.join(mypath, f'{fileName}.ccerr')
         if os.path.isfile(compileErrorFile):
-                ce = open(compileErrorFile, 'r', encoding='utf-8').read()
-                stderr = stderr.replace(tmpFileName, '.tmp.cpp')
+            ce = open(compileErrorFile, 'r', encoding='utf-8').read()
+            stderr = stderr.replace(tmpFileName, '.tmp.cpp')
 
-                if ce == stderr:
-                    print('[PASSED] Compile: %s' %(f))
-                    return True, None
+            if ce == stderr:
+                print(f'[PASSED] Compile: {f}')
+                return True, None
 
-        print('[ERROR] Compile failed: %s' %(f))
+        print(f'[ERROR] Compile failed: {f}')
         print(stderr)
     else:
         if os.path.isfile(compileErrorFile):
-            print('unused file: %s' %(compileErrorFile))
+            print(f'unused file: {compileErrorFile}')
 
         ext = 'obj' if os.name == 'nt' else 'o'
 
-        objFileName = '%s.%s' %(os.path.splitext(os.path.basename(tmpFileName))[0], ext)
+        objFileName = f'{os.path.splitext(os.path.basename(tmpFileName))[0]}.{ext}'
         os.remove(objFileName)
 
-        print('[PASSED] Compile: %s' %(f))
+        print(f'[PASSED] Compile: {f}')
         return True, None
 
     return False, stderr
@@ -129,9 +129,9 @@ def main():
     remainingArgs = args['args']
     bFailureIsOk  = args['failure_is_ok']
     bUpdateTests  = args['update_tests']
-    defaultCppStd = '-std=%s'% (args['std'])
+    defaultCppStd = f"-std={args['std']}"
 
-    if 0 == len(remainingArgs):
+    if len(remainingArgs) == 0:
         cppFiles = [f for f in os.listdir(mypath) if (os.path.isfile(os.path.join(mypath, f)) and f.endswith('.cpp'))]
     else:
         cppFiles = remainingArgs
@@ -146,8 +146,8 @@ def main():
 
     for f in sorted(cppFiles):
         fileName     = os.path.splitext(f)[0]
-        expectFile   = os.path.join(mypath, fileName + '.expect')
-        ignoreFile   = os.path.join(mypath, fileName + '.ignore')
+        expectFile = os.path.join(mypath, f'{fileName}.expect')
+        ignoreFile = os.path.join(mypath, f'{fileName}.ignore')
         cppStd       = defaultCppStd
         insightsOpts = ''
 
@@ -155,20 +155,20 @@ def main():
         fileHeader = fh.readline()
         fileHeader += fh.readline()
         m = regEx.search(fileHeader)
-        if None != m:
-            cppStd = m.group(1)
+        if m != None:
+            cppStd = m[1]
 
         m = regExInsights.search(fileHeader)
-        if None != m:
-            insightsOpts = m.group(1)
+        if m != None:
+            insightsOpts = m[1]
 
         if not os.path.isfile(expectFile) and not os.path.isfile(ignoreFile):
-            print('Missing expect/ignore for: %s' %(f))
+            print(f'Missing expect/ignore for: {f}')
             missingExpected += 1
             continue
 
         if os.path.isfile(ignoreFile):
-            print('Ignoring: %s' %(f))
+            print(f'Ignoring: {f}')
             filesPassed += 1
             continue
 
@@ -178,7 +178,7 @@ def main():
             cmd.append('-use-libc++')
 
 
-        if '' != insightsOpts:
+        if insightsOpts != '':
             cmd.append(insightsOpts)
 
         cmd.extend(['--', cppStd, '-m64'])
@@ -187,8 +187,8 @@ def main():
         stdout, stderr, returncode = runCmd(cmd)
         end   = datetime.datetime.now()
 
-        if 0 != returncode:
-            compileErrorFile = os.path.join(mypath, fileName + '.cerr')
+        if returncode != 0:
+            compileErrorFile = os.path.join(mypath, f'{fileName}.cerr')
             if os.path.isfile(compileErrorFile):
                 ce = open(compileErrorFile, 'r', encoding='utf-8').read()
 
@@ -200,12 +200,12 @@ def main():
                 stderr = cleanStderr(stderr)
 
                 # The cerr output matches and the return code says that we hit a compile error, accept it as passed
-                if (ce == stderr) and (1 == returncode):
-                    print('[PASSED] Compile: %s' %(f))
+                if ce == stderr and returncode == 1:
+                    print(f'[PASSED] Compile: {f}')
                     filesPassed += 1
                     continue
                 else:
-                    print('[ERROR] Compile: %s' %(f))
+                    print(f'[ERROR] Compile: {f}')
                     ret = 1
 
 
@@ -224,13 +224,13 @@ def main():
 
             equal = testCompare(tmpFileName, stdout, expectFile, f, args, end-begin)
             bCompiles, stderr = testCompile(tmpFileName, f, args, fileName, cppStd)
-            compileErrorFile = os.path.join(mypath, fileName + '.cerr')
+            compileErrorFile = os.path.join(mypath, f'{fileName}.cerr')
 
 
             if bCompiles and equal:
                 filesPassed += 1
             elif bUpdateTests:
-                if bCompiles and not equal:
+                if bCompiles:
                     open(expectFile, 'w', encoding='utf-8').write(stdout)
                     print('Updating test')
                 elif not bCompiles and os.path.exists(compileErrorFile):
@@ -254,9 +254,9 @@ def main():
     print('Insights crashed: %d' %(crashes))
     print('Missing expected files: %d' %(missingExpected))
 
-    passed = (0 == missingExpected) and (expectedToPass == filesPassed)
+    passed = missingExpected == 0 and expectedToPass == filesPassed
 
-    return (False == passed)  # note bash expects 0 for ok
+    return not passed
 #------------------------------------------------------------------------------
 
 
